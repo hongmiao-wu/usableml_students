@@ -1,0 +1,22 @@
+body {
+    text-align: center;
+    margin: 20px;
+}
+
+h1 {
+    font-size: 24px;
+}
+
+input[type="range"] {
+    width: 80%;
+    margin: 20px;
+}
+
+button {
+    font-size: 16px;
+}
+
+#value_display {
+    font-size: 20px;
+    margin: 20px;
+}
