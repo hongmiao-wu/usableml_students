@@ -67,3 +67,5 @@ def main(seed):
 if __name__ == "__main__":
     main(seed=0)
     print(f"The final accuracy is: {final_test_acc}")
+
+    
