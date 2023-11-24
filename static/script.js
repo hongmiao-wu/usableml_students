@@ -52,7 +52,7 @@ function startTraining() {
 setInterval(function() {
     updateAccuracy();
     updateLoss();
-}, 10000);
+}, 1000);
 
 
 

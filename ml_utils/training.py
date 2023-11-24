@@ -35,12 +35,12 @@ def training(model: Module, optimizer: Optimizer, cuda: bool, n_epochs: int,
             data, target = batch
             train_step(model=model, optimizer=optimizer, cuda=cuda, data=data,
                        target=target)
-        test_loss, test_acc = accuracy(model, test_loader, cuda)
-        if q_acc is not None:
-            q_acc.put(test_acc)
-        if q_loss is not None:
-            q_loss.put(test_loss)
-        print(f"epoch={epoch}, test accuracy={test_acc}, loss={test_loss}")
+            test_loss, test_acc = accuracy(model, test_loader, cuda)
+            if q_acc is not None:
+                q_acc.put(test_acc)
+            if q_loss is not None:
+                q_loss.put(test_loss)
+            print(f"epoch={epoch}, test accuracy={test_acc}, loss={test_loss}")
     # final_test_loss, final_test_acc = accuracy(model, test_loader, cuda)
     # print(f"Final Test Accuracy: {final_test_acc}")
     # return final_test_acc
@@ -68,4 +68,3 @@ if __name__ == "__main__":
     main(seed=0)
     print(f"The final accuracy is: {final_test_acc}")
 
-    
