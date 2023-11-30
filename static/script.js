@@ -1,6 +1,8 @@
 var slider = document.getElementById("slider");
 var sliderValueElement = document.getElementById("sliderValue");
 var playButton = document.getElementById("playButton");
+var stopButton = document.getElementById("stopButton");
+var resumeButton = document.getElementById("resumeButton");
 var accuracyElement = document.getElementById("accuracy");
 var lossElement = document.getElementById("loss");
 
@@ -11,9 +13,21 @@ playButton.addEventListener('click', function () {
     playButton.disabled = true;
 });
 
-// stopButton.addEventListener('click', function(){
+stopButton.addEventListener('click', function(){
+    stopTraining();
+    // saveCheckpoint();
+    slider.disabled = false;
+    stopButton.disabled = true;
+    playButton.disabled = false;
+});
 
-// }
+resumeButton.addEventListener('click', function(){
+    resumeTraining();
+    slider.disabled = true;
+    stopButton.disabled = false;
+    resumeButton.disabled = true;
+    playButton.disabled = false;
+});
 
 // Function to update accuracy value on the page
 function updateAccuracy() {
@@ -40,6 +54,36 @@ function updateSliderValue() {
 // Function to start training
 function startTraining() {
     fetch("/start_training", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+    })
+    .then(response => response.json())
+}
+
+function stopTraining(){
+    fetch("/stop_training", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+    })
+    .then(response => response.json())
+}
+
+// function saveCheckpoint() {
+//     fetch("/save_checkpoint", {
+//         method: "POST",
+//         headers: {
+//             "Content-Type": "application/x-www-form-urlencoded"
+//         }
+//     })
+//     .then(response => response.json());
+// }
+
+function resumeTraining(){
+    fetch("resume_training", {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded"

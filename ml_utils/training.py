@@ -21,33 +21,59 @@ def train_step(model: Module, optimizer: Optimizer, data: Tensor,
     prediction = model(data)
     loss = F.cross_entropy(prediction, target)
     loss.backward()
+
     optimizer.step()
     optimizer.zero_grad()
 
 
-def training(model: Module, optimizer: Optimizer, cuda: bool, n_epochs: int,
-             batch_size: int, q_acc: Queue = None, q_loss: Queue = None):
+def training(model: Module, optimizer: Optimizer, cuda: bool, n_epochs: int, 
+             start_epoch: int, batch_size: int, q_acc: Queue = None, q_loss: Queue = None, q_stop_signal: Queue = None):
     train_loader, test_loader = get_data_loaders(batch_size=batch_size)
+    PATH = "stop.pt"
     if cuda:
         model.cuda()
-    for epoch in range(n_epochs):
+    stop_signal = False
+    for epoch in range(start_epoch, n_epochs):
+        
         for batch in train_loader:
             data, target = batch
             train_step(model=model, optimizer=optimizer, cuda=cuda, data=data,
                        target=target)
-            test_loss, test_acc = accuracy(model, test_loader, cuda)
-            if q_acc is not None:
-                q_acc.put(test_acc)
-            if q_loss is not None:
-                q_loss.put(test_loss)
-            print(f"epoch={epoch}, test accuracy={test_acc}, loss={test_loss}")
+        
+        test_loss, test_acc = accuracy(model, test_loader, cuda)
+        if q_acc is not None:
+            q_acc.put(test_acc)
+        if q_loss is not None:
+            q_loss.put(test_loss)
+        if q_stop_signal is not None:
+            stop_signal = q_stop_signal.get()
+        if stop_signal:
+            # torch.save({
+            #     'epoch': epoch,
+            #     'model_state_dict': model.state_dict(),
+            #     'optimizer_state_dict': optimizer.state_dict(),
+            #     'loss': test_loss,
+            #     'accuracy': test_acc
+            #     }, PATH)
+            break
+        print(f"epoch{epoch} is done!")
     # final_test_loss, final_test_acc = accuracy(model, test_loader, cuda)
     # print(f"Final Test Accuracy: {final_test_acc}")
     # return final_test_acc
     if cuda:
         empty_cache()
 
-
+# def save_checkpoint(model, optimizer, epoch, loss, acc):
+#     checkpoint = {
+#         'epoch': epoch,
+#         'model_state_dict': model.state_dict(),
+#         'optimizer_state_dict': optimizer.state_dict(),
+#         'loss': loss,
+#         'acc': acc,
+#         # Add any other information you want to save
+#     }
+#     torch.save(checkpoint, 'checkpoint.pth')
+    
 def main(seed):
     print("init...")
     manual_seed(seed)
@@ -66,5 +92,5 @@ def main(seed):
 
 if __name__ == "__main__":
     main(seed=0)
-    print(f"The final accuracy is: {final_test_acc}")
+    # print(f"The final accuracy is: {final_test_acc}")
 

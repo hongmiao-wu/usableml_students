@@ -9,7 +9,8 @@
     <p>Current Loss: <span id="loss">{{ loss }}</span></p>
     <button id="playButton">Play</button>
     <button id="stopButton">Stop</button>
-    <button id="continueButton">Continue</button>
+    <button id="resumeButton">Resume</button>
+    <p> <image src="{{ loss_plot }}"></image> </p>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
