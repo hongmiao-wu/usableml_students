@@ -2,9 +2,16 @@
 <html>
 <body>
     <h1>Minimal ML App</h1>
-    <label for="slider">PRNG Seed:</label>
-    <input type="range" id="slider" min="0" max="1000" value="{{ seed }}">
-    <span id="sliderValue">{{ seed }}</span>
+    <p>
+    <label for="slider1">PRNG Seed:</label>
+    <input type="range" id="slider1" min="0" max="1000" step="1.0" value="{{ seed }}">
+    <span id="sliderValue1">{{ seed }}</span>    
+    </p>
+    <p>
+    <label for="slider2">PRNG Learning rate:</label>
+    <input type="range" id="slider2" min="0" max="0.5" step="0.001" value="{{ lr }}">
+    <span id="sliderValue2">{{ lr }}</span>
+    </p>
     <p>Current Accuracy: <span id="accuracy">{{ acc }}</span></p>
     <p>Current Loss: <span id="loss">{{ loss }}</span></p>
     <button id="playButton">Play</button>

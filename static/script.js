@@ -1,5 +1,7 @@
-var slider = document.getElementById("slider");
-var sliderValueElement = document.getElementById("sliderValue");
+var slider1 = document.getElementById("slider1"); //seed slider
+var slider2 = document.getElementById("slider2"); //learing rate slider
+var sliderValueElement1 = document.getElementById("sliderValue1");
+var sliderValueElement2 = document.getElementById("sliderValue2");
 var playButton = document.getElementById("playButton");
 var accuracyElement = document.getElementById("accuracy");
 var lossElement = document.getElementById("loss");
@@ -7,7 +9,8 @@ var lossElement = document.getElementById("loss");
 // Function to disable slider and button when button is pressed
 playButton.addEventListener('click', function () {
     startTraining();
-    slider.disabled = true;
+    slider1.disabled = true;
+    slider2.disabled = true;
     playButton.disabled = true;
 });
 
@@ -32,9 +35,14 @@ function updateLoss() {
         });
 }
 
-// Function to update slider value display
+// Function to update slider value display for seed
 function updateSliderValue() {
-    sliderValueElement.textContent = slider.value;
+    sliderValueElement1.textContent = slider1.value;
+}
+
+// Function to update slider value display for learning rate
+function updateSliderValue() {
+    sliderValueElement2.textContent = slider2.value;
 }
 
 // Function to start training
@@ -57,13 +65,25 @@ setInterval(function() {
 
 
 // Function to change seed value when slider is changed
-slider.addEventListener("input", function() {
+slider1.addEventListener("input", function() {
     updateSliderValue();
     fetch("/update_seed", {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded"
         },
-        body: "seed=" + slider.value
+        body: "seed=" + slider1.value
+    });
+});
+
+// Function to change  learning rate when slider is changed
+slider2.addEventListener("input", function() {
+    updateSliderValue();
+    fetch("/update_learningRate", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: "learing rate=" + slider2.value
     });
 });

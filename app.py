@@ -20,8 +20,10 @@ socketio = SocketIO(app)
 seed = 42
 acc = -1
 loss = 1
+lr = 0.3
 q_acc = queue.Queue()
 q_loss = queue.Queue()
+
 
 
 def listener():
@@ -35,21 +37,20 @@ def listener():
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    global seed, acc, loss
+    global seed, acc, loss, lr
     # render "index.html" as long as user is at "/"
-    return render_template("index.html", seed=seed, acc=acc, loss=loss)
-
+    return render_template("index.html", seed=seed, acc=acc, loss=loss, lr=lr)
 
 @app.route("/start_training", methods=["POST"])
 def start_training():
     # ensure that these variables are the same as those outside this method
-    global q_acc, q_loss, seed
+    global q_acc, q_loss, seed, lr
     # determine pseudo-random number generation
     manual_seed(seed)
     np.random.seed(seed)
     # initialize training
     model = ConvolutionalNeuralNetwork()
-    opt = SGD(model.parameters(), lr=0.3, momentum=0.5)
+    opt = SGD(model.parameters(), lr=lr, momentum=0.5)
     # execute training
     training(model=model,
              optimizer=opt,
@@ -78,6 +79,12 @@ def get_loss():
     global loss
     return jsonify({"loss": loss})
 
+#adjust learning rate 
+@app.route("/update_learningRate")
+def update_learningRate():
+    global lr
+    lr = int(request.form["lr"])
+    return jsonify({"lr": lr})
 
 if __name__ == "__main__":
     host = "127.0.0.1"
