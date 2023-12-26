@@ -25,22 +25,28 @@ socketio = SocketIO(app)
 seed = 42
 acc = -1
 loss = 0.1
-epoch_losses = []
+n_epochs = 10
+epoch = -1
+epoch_losses = dict.fromkeys(range(n_epochs))
 stop_signal = False
 q_acc = queue.Queue()
 q_loss = queue.Queue()
 q_stop_signal = queue.Queue()
+q_epoch = queue.Queue()
+
 
 
 
 def listener():
-    global q_acc, q_loss, q_stop_signal, acc, loss, stop_signal
+    global q_acc, q_loss, q_stop_signal, q_epoch, epoch, acc, loss, stop_signal
     while True:
         acc = q_acc.get()
         loss = q_loss.get()
+        epoch = q_epoch.get()
         q_stop_signal.put(stop_signal)
         q_acc.task_done()
         q_loss.task_done()
+        q_epoch.task_done()
         q_stop_signal.task_done()
         
 
@@ -50,28 +56,26 @@ def index():
     global seed, acc, loss, epoch_losses
 
     # render "index.html" as long as user is at "/"
-    # return render_template("index.html", seed=seed, acc=acc, loss=loss)
+    return render_template("index.html", seed=seed, acc=acc, loss=loss)
 
     
     """
     If you want to show the plot directly on the index page
     """
-    epoch_losses.append(loss)
+    # epoch_losses.append(loss)
     
-    fig = Figure()
-    ax = fig.subplots()  # Create a new figure with a single subplot
-    ax.plot(epoch_losses)
-    ax.set_xlabel('Epoch')
-    ax.set_ylabel('Average Loss')
-    ax.set_title('Training Loss per Epoch')
-    # Save it to a temporary buffer.
-    buf = BytesIO()
-    fig.savefig(buf, format="png")
+    # fig = Figure()
+    # ax = fig.subplots()  # Create a new figure with a single subplot
+    # ax.plot(epoch_losses)
+    # ax.set_xlabel('Epoch')
+    # ax.set_ylabel('Average Loss')
+    # ax.set_title('Training Loss per Epoch')
+    # # Save it to a temporary buffer.
+    # buf = BytesIO()
+    # fig.savefig(buf, format="png")
     
-    dataurl = 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode('ascii')
-    return render_template("index.html", seed=seed, acc=acc, loss=loss, loss_plot=dataurl)
-    
-
+    # dataurl = 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode('ascii')
+    # return render_template("index.html", seed=seed, acc=acc, loss=loss, loss_plot=dataurl)
 @app.route("/start_training", methods=["POST"])
 def start_training():
     # ensure that these variables are the same as those outside this method
@@ -87,11 +91,12 @@ def start_training():
     training(model=model,
              optimizer=opt,
              cuda=False,
-             n_epochs=10,
+             n_epochs=n_epochs,
              start_epoch=0,
              batch_size=256,
              q_acc=q_acc,
              q_loss=q_loss,
+             q_epoch=q_epoch,
              q_stop_signal=q_stop_signal)
     return jsonify({"success": True})
 
@@ -126,12 +131,24 @@ def stop_training():
 
 @app.route("/loss_plot", methods=["GET"])
 def loss_plot():
-    global epoch_losses, loss
+    global epoch_losses, loss, epoch
 
-    epoch_losses.append(loss)
+    while((epoch_losses.get(epoch) is None) & (epoch != -1)):
+        epoch_losses[epoch] = loss  
+    print(epoch_losses)
     fig = Figure()
     ax = fig.subplots()  # Create a new figure with a single subplot
-    ax.plot(epoch_losses)
+    # epoch_losses_list = sorted(epoch_losses.items())
+    # x, y = zip(*epoch_losses_list)
+    # print(x)
+    # print(y)
+    # ax.plot(x, y)
+    # ax.plot(epoch_losses.keys(), epoch_losses.values())
+    y = list(epoch_losses.values())
+    print("nan beng")
+    print(list(range(epoch+1)))
+    print(y[:(epoch+1)])
+    ax.plot(range(epoch+1),y[:(epoch+1)])
     ax.set_xlabel('Epoch')
     ax.set_ylabel('Average Loss')
     ax.set_title('Training Loss per Epoch')
@@ -159,6 +176,14 @@ def get_loss():
     global loss
     return jsonify({"loss": loss})
 
+@app.route("/get_epoch")
+def get_epoch():
+    global epoch
+    return jsonify({"epoch": epoch})
+
+
+# def dict_to_list(values):
+#     return [0 if x is None else x for x in values]
 
 if __name__ == "__main__":
     host = "127.0.0.1"

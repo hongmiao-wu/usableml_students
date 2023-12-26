@@ -5,6 +5,7 @@ var stopButton = document.getElementById("stopButton");
 var resumeButton = document.getElementById("resumeButton");
 var accuracyElement = document.getElementById("accuracy");
 var lossElement = document.getElementById("loss");
+var epochElement = document.getElementById("epoch");
 
 // Function to disable slider and button when button is pressed
 playButton.addEventListener('click', function () {
@@ -43,6 +44,14 @@ function updateLoss() {
         .then(response => response.json())
         .then(data => {
             lossElement.textContent = data.loss;
+        });
+}
+
+function updateEpoch() {
+    fetch("/get_epoch")
+        .then(response => response.json())
+        .then(data => {
+            epochElement.textContent = data.epoch;
         });
 }
 
@@ -96,6 +105,7 @@ function resumeTraining(){
 setInterval(function() {
     updateAccuracy();
     updateLoss();
+    updateEpoch();
 }, 1000);
 
 

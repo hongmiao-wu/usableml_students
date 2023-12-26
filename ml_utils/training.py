@@ -27,14 +27,14 @@ def train_step(model: Module, optimizer: Optimizer, data: Tensor,
 
 
 def training(model: Module, optimizer: Optimizer, cuda: bool, n_epochs: int, 
-             start_epoch: int, batch_size: int, q_acc: Queue = None, q_loss: Queue = None, q_stop_signal: Queue = None):
+             start_epoch: int, batch_size: int, q_acc: Queue = None, q_loss: Queue = None, q_epoch: Queue = None, q_stop_signal: Queue = None):
     train_loader, test_loader = get_data_loaders(batch_size=batch_size)
     PATH = "stop.pt"
     if cuda:
         model.cuda()
     stop_signal = False
     for epoch in range(start_epoch, n_epochs):
-        
+        q_epoch.put(epoch)
         for batch in train_loader:
             data, target = batch
             train_step(model=model, optimizer=optimizer, cuda=cuda, data=data,
