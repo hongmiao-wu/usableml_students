@@ -6,10 +6,13 @@ var resumeButton = document.getElementById("resumeButton");
 var accuracyElement = document.getElementById("accuracy");
 var lossElement = document.getElementById("loss");
 var epochElement = document.getElementById("epoch");
+var epochLossesElement = document.getElementById("epoch_losses");
+var imageElement = document.getElementById("loss_plot");
 
 // Function to disable slider and button when button is pressed
 playButton.addEventListener('click', function () {
     startTraining();
+    updateImage();
     slider.disabled = true;
     playButton.disabled = true;
 });
@@ -54,6 +57,23 @@ function updateEpoch() {
             epochElement.textContent = data.epoch;
         });
 }
+
+function updateEpochLosses() {
+    fetch("/get_epoch_losses")
+        .then(response => response.json())
+        .then(data => {
+            epochLossesElement.textContent = data.epoch_losses;
+        });
+}
+
+function updateImage() {
+    fetch("/get_loss_image")  
+        .then(response => response.json())  
+        .then(data => {
+            imageElement = data.loss_img_url;
+        });
+}
+
 
 // Function to update slider value display
 function updateSliderValue() {
@@ -101,11 +121,13 @@ function resumeTraining(){
     .then(response => response.json())
 }
 
-// Update accuracy every second
+// Update every second
 setInterval(function() {
     updateAccuracy();
     updateLoss();
     updateEpoch();
+    updateEpochLosses();
+    updateImage();
 }, 1000);
 
 
