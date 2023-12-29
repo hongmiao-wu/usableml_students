@@ -3,6 +3,7 @@ import sys
 sys.path.append("ml_utils")
 
 import numpy as np
+import torch
 from torch import manual_seed, Tensor
 from torch.cuda import empty_cache
 from torch.nn import Module, functional as F
@@ -21,15 +22,15 @@ def train_step(model: Module, optimizer: Optimizer, data: Tensor,
     prediction = model(data)
     loss = F.cross_entropy(prediction, target)
     loss.backward()
-
     optimizer.step()
     optimizer.zero_grad()
 
 
 def training(model: Module, optimizer: Optimizer, cuda: bool, n_epochs: int, 
-             start_epoch: int, batch_size: int, q_acc: Queue = None, q_loss: Queue = None, q_epoch: Queue = None, q_stop_signal: Queue = None):
+             start_epoch: int, batch_size: int, q_acc: Queue = None, q_loss: Queue = None, 
+             q_epoch: Queue = None, q_stop_signal: Queue = None):
     train_loader, test_loader = get_data_loaders(batch_size=batch_size)
-    PATH = "stop.pt"
+    path = "stop.pt"
     if cuda:
         model.cuda()
     stop_signal = False
@@ -46,34 +47,43 @@ def training(model: Module, optimizer: Optimizer, cuda: bool, n_epochs: int,
             q_loss.put(test_loss)
         if q_stop_signal is not None:
             stop_signal = q_stop_signal.get()
-        if stop_signal:
-            # torch.save({
-            #     'epoch': epoch,
-            #     'model_state_dict': model.state_dict(),
-            #     'optimizer_state_dict': optimizer.state_dict(),
-            #     'loss': test_loss,
-            #     'accuracy': test_acc
-            #     }, PATH)
-            break
         print(f"epoch{epoch} is done!")
-        print(f"epoch={epoch}, test accuracy={test_acc}, loss={test_loss}")
-    # final_test_loss, final_test_acc = accuracy(model, test_loader, cuda)
-    # print(f"Final Test Accuracy: {final_test_acc}")
-    # return final_test_acc
+        # print(f"epoch={epoch}, test accuracy={test_acc}, loss={test_loss}")
+        if stop_signal:
+            save_checkpoint(model, optimizer, epoch, test_loss, test_acc, path, False)
+            print(f"The checkpoint for epoch: {epoch} is saved!")
+            break
     if cuda:
         empty_cache()
 
-# def save_checkpoint(model, optimizer, epoch, loss, acc):
-#     checkpoint = {
-#         'epoch': epoch,
-#         'model_state_dict': model.state_dict(),
-#         'optimizer_state_dict': optimizer.state_dict(),
-#         'loss': loss,
-#         'acc': acc,
-#         # Add any other information you want to save
-#     }
-#     torch.save(checkpoint, 'checkpoint.pth')
-    
+def save_checkpoint(model, optimizer, epoch, loss, acc, path, print_info):
+    checkpoint = {
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'loss': loss,
+        'acc': acc,
+        # Add any other information you want to save
+    }
+    torch.save(checkpoint, path)
+    if(print_info):
+        print(f"The checkpoint for epoch: {epoch} is saved!")
+            # Print model's state_dict
+        print("Model's state_dict:")
+        for param_tensor in model.state_dict():
+            print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+        print()
+        print("Optimizer's state_dict:")
+        for var_name in optimizer.state_dict():
+            print(var_name, "\t", optimizer.state_dict()[var_name])
+        
+def load_checkpoint(model, path):
+    checkpoint = torch.load(path)
+    model.eval()
+    return checkpoint
+
+
+
 def main(seed):
     print("init...")
     manual_seed(seed)

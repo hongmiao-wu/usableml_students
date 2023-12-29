@@ -14,7 +14,7 @@ from torch.optim import Optimizer, SGD
 import matplotlib.pyplot as plt
 
 from ml_utils.model import ConvolutionalNeuralNetwork
-from ml_utils.training import training
+from ml_utils.training import training, load_checkpoint
 
 
 app = Flask(__name__)
@@ -67,25 +67,7 @@ def index():
     return render_template("index.html", seed=seed, acc=acc, \
                            loss=loss, loss_plot = loss_img_url)
 
-    
-    """
-    If you want to show the plot directly on the index page
-    """
-    # epoch_losses.append(loss)
-    
-    # fig = Figure()
-    # ax = fig.subplots()  # Create a new figure with a single subplot
-    # ax.plot(epoch_losses)
-    # ax.set_xlabel('Epoch')
-    # ax.set_ylabel('Average Loss')
-    # ax.set_title('Training Loss per Epoch')
-    # # Save it to a temporary buffer.
-    # buf = BytesIO()
-    # fig.savefig(buf, format="png")
-    
-    # dataurl = '
-    # encode(buf.getvalue()).decode('ascii')
-    # return render_template("index.html", seed=seed, acc=acc, loss=loss, loss_plot=dataurl)
+
 @app.route("/start_training", methods=["POST"])
 def start_training():
     # ensure that these variables are the same as those outside this method
@@ -117,27 +99,28 @@ def stop_training():
     # saveCheckpoint()
     return jsonify({"success": True})
 
-# @app.route("/resume_training", methods=["POST"])
-# def resume_training():
-#     global stop_signal
-#     PATH = "stop.pt"
-#     stop_signal = False  # Set the stop signal to False
-#     model = ConvolutionalNeuralNetwork()
-#     opt = SGD(model.parameters(), lr=0.3, momentum=0.5)
-#     checkpoint = torch.load(PATH)
-#     model.load_state_dict(checkpoint['model_state_dict'])
-#     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-#     epoch = checkpoint['epoch']
-#     training(model=model,
-#              optimizer=opt,
-#              cuda=False,
-#              n_epochs=10,
-#              start_epoch=epoch,
-#              batch_size=256,
-#              q_acc=q_acc,
-#              q_loss=q_loss,
-#              q_stop_signal=q_stop_signal)
-#     return jsonify({"success": True})
+@app.route("/resume_training", methods=["POST"])
+def resume_training():
+    global stop_signal
+    path = "stop.pt"
+    stop_signal = False  # Set the stop signal to False
+    model = ConvolutionalNeuralNetwork()
+    opt = SGD(model.parameters(), lr=0.3, momentum=0.5)
+    # checkpoint = torch.load(PATH)
+    checkpoint = load_checkpoint(model, path)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    opt.load_state_dict(checkpoint['optimizer_state_dict'])
+    training(model=model,
+             optimizer=opt,
+             cuda=False,
+             n_epochs=10,
+             start_epoch=checkpoint['epoch']+1,
+             batch_size=256,
+             q_acc=q_acc,
+             q_loss=q_loss,
+             q_epoch=q_epoch,
+             q_stop_signal=q_stop_signal)
+    return jsonify({"success": True})
 
 @app.route("/loss_plot", methods=["GET"])
 def loss_plot():
@@ -227,9 +210,6 @@ def get_dict():
 def get_loss_image():
     global loss_img_url
     return jsonify({"loss_img_url": loss_img_url})
-
-# def dict_to_list(values):
-#     return [0 if x is None else x for x in values]
 
 if __name__ == "__main__":
     host = "127.0.0.1"
