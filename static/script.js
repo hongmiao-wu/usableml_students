@@ -28,18 +28,23 @@ playButton.addEventListener('click', function () {
 
 stopButton.addEventListener('click', function(){
     stopTraining();
-    // saveCheckpoint();
-    slider.disabled = false;
     stopButton.disabled = true;
     playButton.disabled = false;
+    slider_seed.disabled = true;
+    slider_lr.disabled = false;
+    slider_ep.disabled = false;
+    slider_batches.disabled = false;
 });
 
 resumeButton.addEventListener('click', function(){
     resumeTraining();
-    slider.disabled = true;
     stopButton.disabled = false;
     resumeButton.disabled = true;
     playButton.disabled = false;
+    slider_seed.disabled = true;
+    slider_lr.disabled = true;
+    slider_ep.disabled = true;
+    slider_batches.disabled = true;
 });
 
 // Function to update accuracy value on the page
