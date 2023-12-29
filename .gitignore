@@ -2,4 +2,5 @@ MNIST/
 *.sh
 **/.DS_Store
 ml_utils/MNIST/
-ml_utils/__pycache__/
+__pycache__/
+*.pt
