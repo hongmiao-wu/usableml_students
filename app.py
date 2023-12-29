@@ -31,8 +31,11 @@ epoch_losses = dict.fromkeys(range(n_epochs))
 stop_signal = False
 data_image = base64.b64encode(b"").decode("ascii")
 loss_img_url = f"data:image/png;base64,{data_image}"
+lr = 0.3
+batch_size = 256
 q_acc = queue.Queue()
 q_loss = queue.Queue()
+
 q_stop_signal = queue.Queue()
 q_epoch = queue.Queue()
 q_loss_img = queue.Queue()
@@ -61,24 +64,25 @@ def listener():
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    global seed, acc, loss, epoch_losses, loss_img_url
-    
+    global seed, acc, loss, epoch_losses, loss_img_url, lr, n_epochs, batch_size
     # render "index.html" as long as user is at "/"
     return render_template("index.html", seed=seed, acc=acc, \
-                           loss=loss, loss_plot = loss_img_url)
-
+                           loss=loss, loss_plot = loss_img_url, lr=lr, n_epochs=n_epochs, batch_size=batch_size)
 
 @app.route("/start_training", methods=["POST"])
 def start_training():
     # ensure that these variables are the same as those outside this method
-    global q_acc, q_loss, seed, stop_signal, epoch, epoch_losses, loss
-    
+    global q_acc, q_loss, seed, stop_signal, epoch, epoch_losses, loss, lr, n_epochs, batch_size
     # determine pseudo-random number generation
     manual_seed(seed)
     np.random.seed(seed)
     # initialize training
     model = ConvolutionalNeuralNetwork()
-    opt = SGD(model.parameters(), lr=0.3, momentum=0.5)
+    opt = SGD(model.parameters(), lr=lr, momentum=0.5)
+    print(seed)
+    print(lr)
+    print(n_epochs)
+    print(batch_size)
     # execute training
     training(model=model,
              optimizer=opt,
@@ -113,9 +117,9 @@ def resume_training():
     training(model=model,
              optimizer=opt,
              cuda=False,
-             n_epochs=10,
+             n_epochs=n_epochs,
              start_epoch=checkpoint['epoch']+1,
-             batch_size=256,
+             batch_size=batch_size,
              q_acc=q_acc,
              q_loss=q_loss,
              q_epoch=q_epoch,
@@ -180,6 +184,26 @@ def update_seed():
     seed = int(request.form["seed"])
     return jsonify({"seed": seed})
 
+#adjust learning rate 
+@app.route("/update_learningRate", methods=["POST"])
+def update_learningRate():
+    global lr
+    lr = float(request.form["lr"])
+    return jsonify({"lr": lr})
+
+#adjust number of epochs
+@app.route("/update_numEpochs", methods=["POST"])
+def update_numEpochs():
+    global n_epochs
+    epochs = int(request.form["n_epochs"])
+    return jsonify({"n_epochs": n_epochs})
+
+#adjust batch_size
+@app.route("/update_batch_size", methods=["POST"])
+def update_batch_size():
+    global batch_size
+    batch_size = int(request.form["batch_size"])
+    return jsonify({"batch_size": batch_size})
 
 @app.route("/get_accuracy")
 def get_accuracy():
@@ -210,7 +234,6 @@ def get_dict():
 def get_loss_image():
     global loss_img_url
     return jsonify({"loss_img_url": loss_img_url})
-
 if __name__ == "__main__":
     host = "127.0.0.1"
     port = 5001
