@@ -112,7 +112,7 @@ function stopTraining(){
 // }
 
 function resumeTraining(){
-    fetch("resume_training", {
+    fetch("/resume_training", {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded"
