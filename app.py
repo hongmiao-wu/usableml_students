@@ -127,22 +127,23 @@ def resume_training():
     return jsonify({"success": True})
 
 @app.route("/loss_plot", methods=["GET"])
-# def loss_plot():
-#     global epoch_losses, loss, epoch, data_url
-#     fig = Figure()
-#     ax = fig.subplots()  # Create a new figure with a single subplot
-#     y = list(epoch_losses.values())
-#     ax.plot(range(epoch+1),y[:(epoch+1)])
-#     ax.set_xlabel('Epoch')
-#     ax.set_ylabel('Average Loss')
-#     ax.set_title('Training Loss per Epoch')
-#     # Save it to a temporary buffer.
-#     buf = BytesIO()
-#     fig.savefig(buf, format="png")
-#     # Embed the result in the html output.
-#     data_image = base64.b64encode(buf.getbuffer()).decode("ascii")
-#     data_url = f"<img src='data:image/png;base64,{data_image}'/>"
-#     return data_url
+# loss_plot is for the display at endpoint /loss_plot while loss_plot_2 is for the display at index.html
+def loss_plot():
+    global epoch_losses, loss, epoch, data_url
+    fig = Figure()
+    ax = fig.subplots()  # Create a new figure with a single subplot
+    y = list(epoch_losses.values())
+    ax.plot(range(epoch+1),y[:(epoch+1)])
+    ax.set_xlabel('Epoch')
+    ax.set_ylabel('Average Loss')
+    ax.set_title('Training Loss per Epoch')
+    # Save it to a temporary buffer.
+    buf = BytesIO()
+    fig.savefig(buf, format="png")
+    # Embed the result in the html output.
+    data_image = base64.b64encode(buf.getbuffer()).decode("ascii")
+    data_url = f"<img src='data:image/png;base64,{data_image}'/>"
+    return data_url
 
 def loss_plot_2():
     global epoch_losses, loss, epoch, data_url
