@@ -7,6 +7,7 @@ from io import BytesIO
 from matplotlib.figure import Figure
 
 from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import numpy as np
 from torch import manual_seed, Tensor
@@ -18,6 +19,7 @@ from ml_utils.training import training, load_checkpoint
 
 
 app = Flask(__name__)
+CORS(app)
 socketio = SocketIO(app)
 
 
@@ -233,6 +235,16 @@ def get_dict():
 def get_loss_image():
     global loss_img_url
     return jsonify({"loss_img_url": loss_img_url})
+
+### api endpoints 
+@app.route('/api/get_params', methods=['POST'])
+def get_params():
+    data = request.json
+    ### TODO: check if the data includes all the necessary params 
+    print("Received data:", data)
+    # Process
+    return jsonify(data), 200
+
 if __name__ == "__main__":
     host = "127.0.0.1"
     port = 5001
