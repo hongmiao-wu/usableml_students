@@ -9,6 +9,7 @@ var sliderValueElement_batches = document.getElementById("sliderValue_batches");
 var playButton = document.getElementById("playButton");
 var stopButton = document.getElementById("stopButton");
 var resumeButton = document.getElementById("resumeButton");
+var revertButton = document.getElementById("revertButton");
 var accuracyElement = document.getElementById("accuracy");
 var lossElement = document.getElementById("loss");
 var epochElement = document.getElementById("epoch");
@@ -45,6 +46,17 @@ resumeButton.addEventListener('click', function(){
     slider_lr.disabled = true;
     slider_ep.disabled = true;
     slider_batches.disabled = true;
+});
+
+revertButton.addEventListener('click', function(){
+    revertToLastEpoch();
+    updateImage();
+    stopButton.disabled = true;
+    playButton.disabled = false;
+    slider_seed.disabled = true;
+    slider_lr.disabled = false;
+    slider_ep.disabled = false;
+    slider_batches.disabled = false;
 });
 
 // Function to update accuracy value on the page
@@ -141,6 +153,15 @@ function resumeTraining(){
     .then(response => response.json())
 }
 
+function revertToLastEpoch(){
+    fetch("/revert_to_last_epoch", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+    })
+    .then(response => response.json())
+}
 // Update every second
 setInterval(function() {
     updateAccuracy();
@@ -148,7 +169,7 @@ setInterval(function() {
     updateEpoch();
     updateEpochLosses();
     updateImage();
-}, 1000);
+}, 5000);
 
 // Function to change seed value when slider is changed
 slider_seed.addEventListener("input", function() {

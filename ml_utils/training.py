@@ -30,12 +30,17 @@ def training(model: Module, optimizer: Optimizer, cuda: bool, n_epochs: int,
              start_epoch: int, batch_size: int, q_acc: Queue = None, q_loss: Queue = None, 
              q_epoch: Queue = None, q_stop_signal: Queue = None):
     train_loader, test_loader = get_data_loaders(batch_size=batch_size)
-    path = "stop.pt"
     if cuda:
         model.cuda()
-    stop_signal = False
+    q_stop_signal.put(False)
     for epoch in range(start_epoch, n_epochs):
+        # if q_stop_signal is not None:
+        #     stop_signal = q_stop_signal.get()
+        stop_signal = q_stop_signal.get()
+        if stop_signal:
+            break
         q_epoch.put(epoch)
+        path=f"stop{epoch}.pt"
         for batch in train_loader:
             data, target = batch
             train_step(model=model, optimizer=optimizer, cuda=cuda, data=data,
@@ -45,14 +50,11 @@ def training(model: Module, optimizer: Optimizer, cuda: bool, n_epochs: int,
             q_acc.put(test_acc)
         if q_loss is not None:
             q_loss.put(test_loss)
-        if q_stop_signal is not None:
-            stop_signal = q_stop_signal.get()
         print(f"epoch{epoch} is done!")
-        # print(f"epoch={epoch}, test accuracy={test_acc}, loss={test_loss}")
-        if stop_signal:
-            save_checkpoint(model, optimizer, epoch, test_loss, test_acc, path, False)
-            print(f"The checkpoint for epoch: {epoch} is saved!")
-            break
+        print(f"epoch={epoch}, test accuracy={test_acc}, loss={test_loss}")
+        save_checkpoint(model, optimizer, epoch, test_loss, test_acc, path, False)
+        print(f"The checkpoint for epoch: {epoch} is saved!")
+        # where stop_signal used to be checked
     if cuda:
         empty_cache()
 

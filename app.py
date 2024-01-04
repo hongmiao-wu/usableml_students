@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 from ml_utils.model import ConvolutionalNeuralNetwork
 from ml_utils.training import training, load_checkpoint
 
-
 app = Flask(__name__)
 socketio = SocketIO(app)
 
@@ -40,9 +39,6 @@ q_stop_signal = queue.Queue()
 q_epoch = queue.Queue()
 q_loss_img = queue.Queue()
 
-
-
-
 def listener():
     global q_acc, q_loss, q_stop_signal, q_epoch, q_loss_img, \
     epoch, acc, loss, stop_signal, epoch_losses, loss_img_url
@@ -52,8 +48,8 @@ def listener():
         epoch = q_epoch.get()
         while((epoch_losses.get(epoch) is None) & (epoch != -1)):
             epoch_losses[epoch] = loss
-            data_url = loss_plot_2()
-            q_loss_img.put(data_url)
+        data_url = loss_plot_url()
+        q_loss_img.put(data_url)
         loss_img_url = q_loss_img.get()
         q_stop_signal.put(stop_signal)
         q_acc.task_done()
@@ -64,32 +60,32 @@ def listener():
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    global seed, acc, loss, epoch_losses, loss_img_url, lr, n_epochs, batch_size
+    global seed, acc, loss, epoch, epoch_losses, loss_img_url, lr, n_epochs, batch_size
     # render "index.html" as long as user is at "/"
     return render_template("index.html", seed=seed, acc=acc, \
-                           loss=loss, loss_plot = loss_img_url, lr=lr, n_epochs=n_epochs, batch_size=batch_size)
+                           loss=loss, epoch = epoch, loss_plot = loss_img_url, lr=lr, n_epochs=n_epochs, batch_size=batch_size)
 
 @app.route("/start_training", methods=["POST"])
 def start_training():
     # ensure that these variables are the same as those outside this method
-    global q_acc, q_loss, seed, stop_signal, epoch, epoch_losses, loss, lr, n_epochs, batch_size
+    global q_acc, q_loss, seed, q_stop_signal, epoch, epoch_losses, loss, lr, n_epochs, batch_size
     # determine pseudo-random number generation
     manual_seed(seed)
     np.random.seed(seed)
     # initialize training
     model = ConvolutionalNeuralNetwork()
     opt = SGD(model.parameters(), lr=lr, momentum=0.5)
-    print(seed)
-    print(lr)
-    print(n_epochs)
-    print(batch_size)
+    print(f"Seed: {seed}")
+    print(f"Learning rate: {lr}")
+    print(f"Number of epochs: {n_epochs}")
+    print(f"Batch size: {batch_size}")
     # execute training
     training(model=model,
              optimizer=opt,
              cuda=False,
              n_epochs=n_epochs,
              start_epoch=0,
-             batch_size=256,
+             batch_size=batch_size,
              q_acc=q_acc,
              q_loss=q_loss,
              q_epoch=q_epoch,
@@ -100,17 +96,14 @@ def start_training():
 def stop_training():
     global stop_signal
     stop_signal = True  # Set the stop signal to True
-    # saveCheckpoint()
     return jsonify({"success": True})
 
 @app.route("/resume_training", methods=["POST"])
 def resume_training():
-    global stop_signal
-    path = "stop.pt"
-    stop_signal = False  # Set the stop signal to False
+    global stop_signal, epoch, lr
+    path = f"stop{epoch}.pt"
     model = ConvolutionalNeuralNetwork()
-    opt = SGD(model.parameters(), lr=0.3, momentum=0.5)
-    # checkpoint = torch.load(PATH)
+    opt = SGD(model.parameters(), lr=lr, momentum=0.5)
     checkpoint = load_checkpoint(model, path)
     model.load_state_dict(checkpoint['model_state_dict'])
     opt.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -126,26 +119,45 @@ def resume_training():
              q_stop_signal=q_stop_signal)
     return jsonify({"success": True})
 
+@app.route("/revert_to_last_epoch", methods=["GET", "POST"])
+def revert_to_last_epoch():
+    global stop_signal, epoch, epoch_losses, loss, lr
+    stop_signal = True
+    path = f"stop{epoch-1}.pt"
+    model = ConvolutionalNeuralNetwork()
+    opt = SGD(model.parameters(), lr=lr, momentum=0.5)
+    checkpoint = load_checkpoint(model, path)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    opt.load_state_dict(checkpoint['optimizer_state_dict'])
+    loss = epoch_losses[epoch-1]
+    epoch = epoch-1
+    remember(epoch, loss)
+    return jsonify({"epoch_losses": epoch_losses})
+
+def remember(epoch, loss):
+    global stop_signal, epoch_losses, loss_img_url, q_loss_img, data_url
+    for i in range(epoch+1, n_epochs):
+        while epoch_losses.get(i) is not None:
+            epoch_losses[i] = None
+    print(epoch_losses)
+    data_url = loss_plot_url()
+    q_loss_img.put(data_url)
+    loss_img_url = q_loss_img.get()
+    while stop_signal == True:
+        q_loss.put(loss)
+        q_epoch.put(epoch)
+    return jsonify({"success": True})
+    
+
 @app.route("/loss_plot", methods=["GET"])
 # loss_plot is for the display at endpoint /loss_plot while loss_plot_2 is for the display at index.html
 def loss_plot():
-    global epoch_losses, loss, epoch, data_url
-    fig = Figure()
-    ax = fig.subplots()  # Create a new figure with a single subplot
-    y = list(epoch_losses.values())
-    ax.plot(range(epoch+1),y[:(epoch+1)])
-    ax.set_xlabel('Epoch')
-    ax.set_ylabel('Average Loss')
-    ax.set_title('Training Loss per Epoch')
-    # Save it to a temporary buffer.
-    buf = BytesIO()
-    fig.savefig(buf, format="png")
-    # Embed the result in the html output.
-    data_image = base64.b64encode(buf.getbuffer()).decode("ascii")
-    data_url = f"<img src='data:image/png;base64,{data_image}'/>"
-    return data_url
+    global data_url
+    data_full_url = f"<img src='{data_url}'/>"
+    print(epoch_losses)
+    return data_full_url
 
-def loss_plot_2():
+def loss_plot_url():
     global epoch_losses, loss, epoch, data_url
     fig = Figure()
     ax = fig.subplots()  # Create a new figure with a single subplot
