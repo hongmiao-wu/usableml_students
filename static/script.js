@@ -29,6 +29,7 @@ playButton.addEventListener('click', function () {
 
 stopButton.addEventListener('click', function(){
     stopTraining();
+    alert("The training might stop only after finishing the current epoch.")
     stopButton.disabled = true;
     playButton.disabled = false;
     slider_seed.disabled = true;
@@ -39,6 +40,7 @@ stopButton.addEventListener('click', function(){
 
 resumeButton.addEventListener('click', function(){
     resumeTraining();
+    updateImage();
     stopButton.disabled = false;
     resumeButton.disabled = true;
     playButton.disabled = false;
@@ -51,6 +53,7 @@ resumeButton.addEventListener('click', function(){
 revertButton.addEventListener('click', function(){
     revertToLastEpoch();
     updateImage();
+    revertButton.disabled = true;
     stopButton.disabled = true;
     playButton.disabled = false;
     slider_seed.disabled = true;

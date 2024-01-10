@@ -2,6 +2,7 @@ import threading
 import queue
 import webbrowser
 import base64
+import time
 
 from io import BytesIO
 from matplotlib.figure import Figure
@@ -28,34 +29,35 @@ n_epochs = 10
 epoch = -1
 epoch_losses = dict.fromkeys(range(n_epochs))
 stop_signal = False
+break_signal = False
 data_image = base64.b64encode(b"").decode("ascii")
 loss_img_url = f"data:image/png;base64,{data_image}"
 lr = 0.3
 batch_size = 256
 q_acc = queue.Queue()
 q_loss = queue.Queue()
-
 q_stop_signal = queue.Queue()
 q_epoch = queue.Queue()
-q_loss_img = queue.Queue()
+q_break_signal = queue.Queue()
 
 def listener():
-    global q_acc, q_loss, q_stop_signal, q_epoch, q_loss_img, \
+    global q_acc, q_loss, q_stop_signal, q_break_signal, q_epoch, \
     epoch, acc, loss, stop_signal, epoch_losses, loss_img_url
     while True:
         acc = q_acc.get()
         loss = q_loss.get()
         epoch = q_epoch.get()
+        # q_epoch.put(epoch)
         while((epoch_losses.get(epoch) is None) & (epoch != -1)):
             epoch_losses[epoch] = loss
-        data_url = loss_plot_url()
-        q_loss_img.put(data_url)
-        loss_img_url = q_loss_img.get()
-        q_stop_signal.put(stop_signal)
+        loss_img_url = loss_plot_url()
+        # q_stop_signal.put(False)
         q_acc.task_done()
         q_loss.task_done()
         q_epoch.task_done()
-        q_stop_signal.task_done()
+        # q_break_signal.task_done()
+        # q_stop_signal.task_done()
+
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -63,18 +65,21 @@ def index():
     global seed, acc, loss, epoch, epoch_losses, loss_img_url, lr, n_epochs, batch_size
     # render "index.html" as long as user is at "/"
     return render_template("index.html", seed=seed, acc=acc, \
-                           loss=loss, epoch = epoch, loss_plot = loss_img_url, lr=lr, n_epochs=n_epochs, batch_size=batch_size)
+                           loss=loss, epoch = epoch, loss_plot = loss_img_url, 
+                           lr=lr, n_epochs=n_epochs, batch_size=batch_size)
 
 @app.route("/start_training", methods=["POST"])
 def start_training():
     # ensure that these variables are the same as those outside this method
-    global q_acc, q_loss, seed, q_stop_signal, epoch, epoch_losses, loss, lr, n_epochs, batch_size
+    global q_acc, q_loss, seed, stop_signal, q_stop_signal, q_break_signal, epoch, epoch_losses, loss, lr, n_epochs, batch_size
     # determine pseudo-random number generation
     manual_seed(seed)
     np.random.seed(seed)
     # initialize training
     model = ConvolutionalNeuralNetwork()
     opt = SGD(model.parameters(), lr=lr, momentum=0.5)
+    q_stop_signal.put(False)
+    print("Starting training with:")
     print(f"Seed: {seed}")
     print(f"Learning rate: {lr}")
     print(f"Number of epochs: {n_epochs}")
@@ -89,24 +94,37 @@ def start_training():
              q_acc=q_acc,
              q_loss=q_loss,
              q_epoch=q_epoch,
+             q_break_signal = q_break_signal,
+             stop_signal= stop_signal,
              q_stop_signal=q_stop_signal)
     return jsonify({"success": True})
 
 @app.route("/stop_training", methods=["POST"])
 def stop_training():
-    global stop_signal
-    stop_signal = True  # Set the stop signal to True
+    global break_signal, stop_signal
+    stop_signal = True
+    q_stop_signal.put(True)
+    # set block to true to wait for item if the queue is empty
+    break_signal = q_break_signal.get(block=True)
+    if break_signal:
+        print("Training breaks!")
     return jsonify({"success": True})
 
 @app.route("/resume_training", methods=["POST"])
 def resume_training():
-    global stop_signal, epoch, lr
+    global break_signal, stop_signal, epoch, lr, q_acc, q_loss, q_epoch, q_stop_signal, n_epochs, batch_size
+    q_stop_signal.put(False)
+    break_signal = False
+    # print(f"before get, epoch is {epoch}")
+    # epoch = q_epoch.get()
+    print(f"Resume from epoch {epoch}")
     path = f"stop{epoch}.pt"
     model = ConvolutionalNeuralNetwork()
     opt = SGD(model.parameters(), lr=lr, momentum=0.5)
     checkpoint = load_checkpoint(model, path)
     model.load_state_dict(checkpoint['model_state_dict'])
     opt.load_state_dict(checkpoint['optimizer_state_dict'])
+    print(f"Epoch {epoch} loaded, ready to resume training!")
     training(model=model,
              optimizer=opt,
              cuda=False,
@@ -116,37 +134,52 @@ def resume_training():
              q_acc=q_acc,
              q_loss=q_loss,
              q_epoch=q_epoch,
+             q_break_signal = q_break_signal,
              q_stop_signal=q_stop_signal)
     return jsonify({"success": True})
 
 @app.route("/revert_to_last_epoch", methods=["GET", "POST"])
 def revert_to_last_epoch():
-    global stop_signal, epoch, epoch_losses, loss, lr
-    stop_signal = True
-    path = f"stop{epoch-1}.pt"
-    model = ConvolutionalNeuralNetwork()
-    opt = SGD(model.parameters(), lr=lr, momentum=0.5)
-    checkpoint = load_checkpoint(model, path)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    opt.load_state_dict(checkpoint['optimizer_state_dict'])
-    loss = epoch_losses[epoch-1]
-    epoch = epoch-1
-    remember(epoch, loss)
-    return jsonify({"epoch_losses": epoch_losses})
-
-def remember(epoch, loss):
-    global stop_signal, epoch_losses, loss_img_url, q_loss_img, data_url
+    global break_signal, epoch, epoch_losses, loss, lr, q_epoch, loss_img_url
+    # check if the training is already stopped, if not, stop first
+    if not break_signal:
+        q_stop_signal.put(True)
+        break_signal = q_break_signal.get(block=True)
+        if break_signal:
+            print("Training breaks!")
+    # if (q_break_signal.get(block=True)):
+        # print(f"after revert epoch is {epoch}")
+        # for i in range(epoch+1, n_epochs):
+        #     while epoch_losses.get(i) is not None:
+        #         epoch_losses[i] = None
+    # to roll back to the epoch fully means forgetting everthing coming after it
+    time.sleep(10)
+    q_epoch.put(epoch-1) # put to self
+    q_loss.put(epoch_losses[epoch-1]) # put to listener
+    loss = q_loss.get()
+    epoch = q_epoch.get() # get from self
+    # q_epoch.put(epoch) # put to listener
     for i in range(epoch+1, n_epochs):
         while epoch_losses.get(i) is not None:
             epoch_losses[i] = None
-    print(epoch_losses)
-    data_url = loss_plot_url()
-    q_loss_img.put(data_url)
-    loss_img_url = q_loss_img.get()
-    while stop_signal == True:
-        q_loss.put(loss)
-        q_epoch.put(epoch)
-    return jsonify({"success": True})
+    print(f"After revert epoch is {epoch}")
+    print(f"current epoch_losses:{epoch_losses}")
+    # call loss_plot to draw the new plot
+    loss_img_url = loss_plot_url()
+    return jsonify({"epoch_losses": epoch_losses})
+
+# def remember(loss):
+#     global stop_signal, epoch_losses, loss_img_url, data_url, epoch
+#     # to forget losses after the epoch
+#     for i in range(epoch+1, n_epochs):
+#         while epoch_losses.get(i) is not None:
+#             epoch_losses[i] = None
+#     print(f"current epoch_losses:{epoch_losses}")
+#     loss_img_url = loss_plot_url()
+#     while stop_signal == True:
+#         q_loss.put(loss)
+#         q_epoch.put(epoch)
+#     return jsonify({"success": True})
     
 
 @app.route("/loss_plot", methods=["GET"])
@@ -245,6 +278,7 @@ def get_dict():
 def get_loss_image():
     global loss_img_url
     return jsonify({"loss_img_url": loss_img_url})
+
 if __name__ == "__main__":
     host = "127.0.0.1"
     port = 5001
