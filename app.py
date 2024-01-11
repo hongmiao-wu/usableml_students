@@ -101,18 +101,18 @@ def start_training():
 
 @app.route("/stop_training", methods=["POST"])
 def stop_training():
-    global break_signal, stop_signal
-    stop_signal = True
-    q_stop_signal.put(True)
-    # set block to true to wait for item if the queue is empty
-    break_signal = q_break_signal.get(block=True)
+    global break_signal
+    if not break_signal:
+        q_stop_signal.put(True)
+        # set block to true to wait for item if the queue is empty
+        break_signal = q_break_signal.get(block=True)
     if break_signal:
         print("Training breaks!")
     return jsonify({"success": True})
 
 @app.route("/resume_training", methods=["POST"])
 def resume_training():
-    global break_signal, stop_signal, epoch, lr, q_acc, q_loss, q_epoch, q_stop_signal, n_epochs, batch_size
+    global break_signal, epoch, lr, q_acc, q_loss, q_epoch, q_stop_signal, n_epochs, batch_size
     q_stop_signal.put(False)
     break_signal = False
     # print(f"before get, epoch is {epoch}")
