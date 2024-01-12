@@ -78,7 +78,7 @@ def start_training():
     # initialize training
     model = ConvolutionalNeuralNetwork()
     opt = SGD(model.parameters(), lr=lr, momentum=0.5)
-    q_stop_signal.put(False)
+    # q_stop_signal.put(False)
     print("Starting training with:")
     print(f"Seed: {seed}")
     print(f"Learning rate: {lr}")
@@ -113,7 +113,7 @@ def stop_training():
 @app.route("/resume_training", methods=["POST"])
 def resume_training():
     global break_signal, epoch, lr, q_acc, q_loss, q_epoch, q_stop_signal, n_epochs, batch_size
-    q_stop_signal.put(False)
+    # q_stop_signal.put(False)
     break_signal = False
     # print(f"before get, epoch is {epoch}")
     # epoch = q_epoch.get()

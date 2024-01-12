@@ -51,6 +51,7 @@ resumeButton.addEventListener('click', function(){
 });
 
 revertButton.addEventListener('click', function(){
+    alert("If training hasn't been stopped, it stops after finishing the current epoch. It can take some time. You can revert further after changes stop, fresh up the page and click again.")
     revertToLastEpoch();
     updateImage();
     revertButton.disabled = true;
